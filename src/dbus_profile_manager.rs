@@ -4,16 +4,32 @@ use dbus::blocking;
 use std::collections::HashMap;
 
 pub trait OrgBluezProfileManager1 {
-    fn register_profile(&self, profile: dbus::Path, uuid: &str, options: HashMap<&str, arg::Variant<Box<dyn arg::RefArg>>>) -> Result<(), dbus::Error>;
-    fn unregister_profile(&self, profile: dbus::Path) -> Result<(), dbus::Error>;
+  fn register_profile(
+    &self,
+    profile: dbus::Path,
+    uuid: &str,
+    options: HashMap<&str, arg::Variant<Box<dyn arg::RefArg>>>,
+  ) -> Result<(), dbus::Error>;
+  fn unregister_profile(&self, profile: dbus::Path) -> Result<(), dbus::Error>;
 }
 
-impl<'a, C: std::ops::Deref<Target=blocking::Connection>> OrgBluezProfileManager1 for blocking::Proxy<'a, C> {
-    fn register_profile(&self, profile: dbus::Path, uuid: &str, options: HashMap<&str, arg::Variant<Box<dyn arg::RefArg>>>) -> Result<(), dbus::Error> {
-        self.method_call("org.bluez.ProfileManager1", "RegisterProfile", (profile, uuid, options, ))
-    }
+impl<'a, C: std::ops::Deref<Target = blocking::Connection>> OrgBluezProfileManager1
+  for blocking::Proxy<'a, C>
+{
+  fn register_profile(
+    &self,
+    profile: dbus::Path,
+    uuid: &str,
+    options: HashMap<&str, arg::Variant<Box<dyn arg::RefArg>>>,
+  ) -> Result<(), dbus::Error> {
+    self.method_call(
+      "org.bluez.ProfileManager1",
+      "RegisterProfile",
+      (profile, uuid, options),
+    )
+  }
 
-    fn unregister_profile(&self, profile: dbus::Path) -> Result<(), dbus::Error> {
-        self.method_call("org.bluez.ProfileManager1", "UnregisterProfile", (profile, ))
-    }
+  fn unregister_profile(&self, profile: dbus::Path) -> Result<(), dbus::Error> {
+    self.method_call("org.bluez.ProfileManager1", "UnregisterProfile", (profile,))
+  }
 }

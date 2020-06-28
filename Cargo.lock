@@ -764,13 +764,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "itoa"
-version = "0.4.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dc6f3ad7b9d11a0c00842ff8de1b60ee58661048eb8049ed33c73594f359d7e6"
-
-[[package]]
-name = "joycontrolrs"
+name = "intiface-console-game-haptics-router"
 version = "0.1.0"
 dependencies = [
  "async-channel",
@@ -781,10 +775,15 @@ dependencies = [
  "libbluetooth",
  "libc",
  "num-traits 0.2.11",
- "num_cpus",
  "smol",
  "uuid",
 ]
+
+[[package]]
+name = "itoa"
+version = "0.4.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dc6f3ad7b9d11a0c00842ff8de1b60ee58661048eb8049ed33c73594f359d7e6"
 
 [[package]]
 name = "js-sys"

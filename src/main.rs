@@ -4,6 +4,11 @@ use std::collections::HashMap;
 use std::error::Error;
 use std::process::Command;
 use std::time::Duration;
+use std::thread;
+
+use buttplug::{    
+    client::{ButtplugClient, ButtplugClientEvent, device::VibrateCommand},
+};
 
 mod dbus_profile_manager;
 mod l2cap;
@@ -17,6 +22,7 @@ use dbus_profile_manager::OrgBluezProfileManager1;
 use std::num::ParseIntError;
 
 use futures::prelude::*;
+use async_channel::{self, Sender, Receiver};
 
 const CONTROLLERS: [&str; 3] = ["Pro Controller", "Joy-Con (L)", "Joy-Con (R)"];
 
@@ -113,9 +119,82 @@ impl std::fmt::Display for BtAddr {
     }
 }
 
+enum BPReturn {
+    SwitchCommand(f64),
+    ButtplugCommand(ButtplugClientEvent)
+}
+
+impl Unpin for BPReturn {}
+
+async fn buttplug_task(mut switch_recv: Receiver<f64>) {
+    println!("Starting buttplug client");
+    let (client, mut event_stream) = ButtplugClient::connect_in_process("JoyconClient", 0).await.unwrap();
+    thread::spawn(|| smol::run(async move {
+        println!("Starting loop");
+        let mut devices = vec!();
+        loop {
+            let client_r = event_stream.next();//.await.unwrap())
+//            };
+            let switch_r = switch_recv.next();
+            let both_r = futures::future::select(client_r, switch_r);
+          match both_r.await {
+              future::Either::Left((ret, _)) => {
+                //if let BPReturn::ButtplugCommand(bpr) = ret.unwrap() {
+                    let bpr = ret.unwrap();
+                    match bpr {
+                    ButtplugClientEvent::DeviceAdded(dev) => {
+                        println!("We got a device: {}", dev.name);
+                        /*
+                        let fut = vibrate_device(dev);
+                        smol::Task::spawn(async move {
+                          fut.await;
+                        }).unwrap();
+                        */
+                        // break;
+                        devices.push(dev);
+                      }
+                      ButtplugClientEvent::ServerDisconnect => {
+                        // The server disconnected, which means we're done here, so just
+                        // break up to the top level.
+                        println!("Server disconnected!");
+                        break;
+                      }
+                      _ => {
+                        // Something else happened, like scanning finishing, devices
+                        // getting removed, etc... Might as well say something about it.
+                        println!("Got some other kind of event we don't care about");
+                      }
+                    }
+                //}
+              },
+              future::Either::Right((ret, _)) => {
+                  let sr = ret.unwrap();
+                //if let BPReturn::SwitchCommand(sr) = ret.unwrap() {
+                    println!("Vibrating at {}", sr);
+                    for dev in &devices {
+                        dev.vibrate(VibrateCommand::Speed(sr)).await.unwrap();
+                    }
+                //}
+              }
+          }
+        }
+    }));
+    client.start_scanning().await.unwrap();
+}
+
 fn main() -> Result<(), Box<dyn Error>> {
     let session = BluetoothSession::create_session(None).unwrap();
-    let adapter = BluetoothAdapter::init(&session)?;
+    //let adapters = bluetooth_utils::get_adapters(session.get_connection())?;
+/*
+    if adapters.is_empty() {
+        return Err(Box::from("Bluetooth adapter not found"));
+    }
+
+    let adapter = BluetoothAdapter::new(session, adapters[1].clone());
+*/
+    //let adapter = BluetoothAdapter::init(&session)?;
+    let adapter = BluetoothAdapter::create_adapter(&session, "/org/bluez/hci1".to_string())?;
+    println!("Adapter id: {}", adapter.get_id());
     let adapter_addr = BtAddr::from_str(&adapter.get_address().unwrap()).unwrap();
 
     let controller = scan_for_bluetooth_controller(&session, &adapter);
@@ -137,6 +216,14 @@ fn main() -> Result<(), Box<dyn Error>> {
     cmd.spawn().unwrap().wait().unwrap();
 
     std::thread::sleep(Duration::from_secs(1));
+
+    let (bp_send, bp_recv) = async_channel::bounded(256);
+    println!("Starting buttplug");
+    thread::spawn(|| smol::run( async move {
+        
+        println!("Starting buttplug task?");
+        buttplug_task(bp_recv).await;
+    }));
 
     println!("Connecting to controller.");
 
@@ -291,7 +378,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         let (mut sw_itr_r, mut sw_itr_w) = switch_itr.split();
         let (mut cn_itr_r, mut cn_itr_w) = controller_itr.split();
 
-        smol::run(async {
+    smol::run(async {
             let mut controller_incoming = [0u8; 128];
             let mut switch_incoming = [0u8; 128];
 
@@ -303,7 +390,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
             let mut total_read_from_cn = 0;
             let mut total_read_from_sw = 0;
-
+            let mut vibrating = false;
             loop {
                 let both_r = futures::future::select(sw_r, cn_r);
 
@@ -317,6 +404,15 @@ fn main() -> Result<(), Box<dyn Error>> {
                             println!("Read 0 bytes from switch itr. Closing");
                             break;
                         }
+                        if switch_incoming[3] > 0 && !vibrating {
+                            bp_send.send(1.0).await;
+                            vibrating = true;
+                        } else if switch_incoming[3] == 0 && vibrating {
+                            bp_send.send(0.0).await;
+                            vibrating = false;
+                        }
+
+                        println!("{:?}", &switch_incoming[0..n]);
 
                         cn_itr_w.write_all(&switch_incoming[0..n]).await.unwrap();
                         
@@ -337,7 +433,6 @@ fn main() -> Result<(), Box<dyn Error>> {
                         // dbg!(n);
 
                         let hid_packet = &mut controller_incoming[1..n];
-
                         if n == 50 && (hid_packet[0], hid_packet[14]) == (0x21, 0x02) {
                             println!("Got a device info packet.");
 
@@ -380,8 +475,8 @@ fn main() -> Result<(), Box<dyn Error>> {
 
             println!("Total bytes from from controller: {}", total_read_from_cn);
             println!("Total bytes from from switch    : {}", total_read_from_sw);
-        });
-    // });
+
+    });
 
     // ctl_relay.join().unwrap();
     // itr_relay.join().unwrap();

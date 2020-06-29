@@ -160,7 +160,12 @@ The RPi image would host a web app that allows users to do toy scanning, set up
 reaction bindings (rumble -> toy, button press -> toy, and at some point,
 command injection, i.e. kegel sensor -> button press).
 
-Obviously, we're a ways off from that right now.
+It'd also be nice to off-board the proxy to a hardware solution and just have it
+siphon stuff back to the host over serial or something. We'd still handle toy
+control on device, but I don't like getting in the way of a game controller with
+a full OS.
+
+Obviously, we're a ways off from all that right now.
 
 ### When will there be PS4/XBox Support?
 
@@ -219,6 +224,7 @@ fixed.
 - Would really like to figure out why the connection keeps flaking out after 2-3
   min.
 - Initial connection reliability.
+- Embedded solution to proxy
 
 I may also try the original joycontrol to see how that works out and if it's any
 more stable. There's a [Python Buttplug
@@ -228,3 +234,13 @@ Client](https://github.com/buttplugio/buttplug-py), so that part isn't a problem
 
 Because joycontrolrs was. I'd expect the whole repo to get a rewrite and be
 under our normal BSD 3-Clause license at some point.
+
+### Why isn't this a GH fork of joycontrolrs?
+
+- We're doing fundamentally different things with our repos I think. License and
+  attribution are kept at least, I just don't see this becoming a repo I'll be
+  PR'ing back from.
+- I can't seem to get ahold of the author and I don't like throwing random
+  people in front of the social media frieght train that is my stupid sex toy
+  stunts, even if they did license it open source in the first place. Most
+  people don't expect the likes of me showing up on their code doorstep. >.>

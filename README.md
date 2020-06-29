@@ -14,6 +14,14 @@ New Horizons and were wondering what the fuck was going on?
 
 Well, here's your answer.
 
+## Videos
+
+Want to see what the CGHR looks like in action?
+
+[Check out our overview on Youtube!](https://www.youtube.com/watch?v=-t9htCMyPIY)
+
+[Or this twitter thread with video clips!](https://twitter.com/buttplugio/status/1277630269072175104)
+
 ## Before we get started
 
 What you see in this repo right now is the barest of Proofs of Concept. I forked
